@@ -46,6 +46,11 @@ try:
 except NameError:                # pragma: no cover
     text_type = str              # Python 3
 
+# (bytes, unicode) on Python 2; (str, str) on Python 3. Needed because every
+# module here uses unicode_literals, so on Python 2 a plain `isinstance(x, str)`
+# is False for the module's own string literals.
+string_types = (str, text_type)
+
 def as_bytes(s, encoding="macroman"):
     "Encode text to bytes; pass bytes/bytearray through unchanged."
     return s.encode(encoding) if isinstance(s, text_type) else s

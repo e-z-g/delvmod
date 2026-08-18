@@ -73,7 +73,7 @@ class _PrintOuter(object):
             self.p(il, "%d"%atom)
         elif isinstance(atom, dref):
             self.p(il, "ref %s"%self.script.get_dref_label(atom))
-        elif isinstance(atom, str):
+        elif isinstance(atom, util.string_types):
             self.p(il, rstr(atom))
         else:
             atom.disassemble(self.stream, il+1)
@@ -88,7 +88,7 @@ class _PrintOuter(object):
             return "%d"%atom
         elif isinstance(atom, dref):
             return "ref %s"%self.script.get_dref_label(atom)
-        elif isinstance(atom, str):
+        elif isinstance(atom, util.string_types):
             return rstr(atom)
         else:
             return atom.str_disassemble(il+1)
@@ -1005,7 +1005,7 @@ class Script(store.Store):
             return "%d"%atom
         elif isinstance(atom, dref):
             return "ref %s"%self.get_dref_label(atom)
-        elif isinstance(atom, str) or isinstance(atom, bytearray):
+        elif isinstance(atom, util.string_types + (bytearray,)):
             return rstr(atom)
         else:
             return "<BAD ATOM %s>"%repr(atom)

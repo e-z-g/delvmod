@@ -151,8 +151,12 @@ class ResourceFile(util.BinaryHandler):
             self.position += length
         return rv
     def read(self, length=None):
-        return str(self.readb(length))
+        # bytes(), not str(): on Python 3 str(bytearray) yields the *repr*
+        # ("bytearray(b'..')") instead of the data. bytes() is identical to
+        # the old str() under Python 2, where bytes is str.
+        return bytes(self.readb(length))
     def write(self, string):
+        string = util.as_bytes(string)
         self.resource.data[self.position:self.position+len(string)] = string
         self.resource.dirty = True
         self.position += len(string)

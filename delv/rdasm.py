@@ -539,7 +539,7 @@ def dict_write_code(table, ofile, context, force_order = None):
     addrs = []
     for address, item in callbacks:
         addrs.append((address,ofile.tell()))
-        if isinstance(item,str) or isinstance(item,bytearray):
+        if isinstance(item, util.string_types + (bytearray,)):
             ofile.write(item)
         else:
             item.write_code(ofile,context)
@@ -562,7 +562,7 @@ def write_array_item(ofile, item, context, callbacks):
          ofile.write_uint32(0x50000000)
     elif isinstance(item,int):
          ofile.write_uint32(item)
-    elif isinstance(item,str) or isinstance(item,bytearray) or isinstance(item,Array):
+    elif isinstance(item, util.string_types + (bytearray,)) or isinstance(item,Array):
          ofile.write_uint16(context.context_resource|0x8000)
          callbacks.append((ofile.tell(), item))
          ofile.write_uint16(0xDEAD)
@@ -621,7 +621,7 @@ class Array(list):
         addrs = []
         for address, item in callbacks:
             addrs.append((address,ofile.tell()))
-            if isinstance(item,str) or isinstance(item,bytearray):
+            if isinstance(item, util.string_types + (bytearray,)):
                 ofile.write(item)
             elif isinstance(item,dict):
                 dict_write_code(item,ofile,context)
@@ -771,7 +771,7 @@ class DDict(dict):
         addrs = []
         for address, item in callbacks:
             addrs.append((address,ofile.tell()))
-            if isinstance(item,str) or isinstance(item,bytearray):
+            if isinstance(item, util.string_types + (bytearray,)):
                 ofile.write(item)
             else:
                 item.write_code(ofile,context)
