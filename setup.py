@@ -18,8 +18,7 @@
 # "Cythera" and "Delver" are trademarks of either Glenn Andreas or 
 # Ambrosia Software, Inc. 
 
-from distutils.core import setup
-import setuptools
+from setuptools import setup
 
 setup(name='delv',
       version='0.2.3',
@@ -31,6 +30,9 @@ setup(name='delv',
       url='http://www.ferazelhosting.net/wiki/delv',
 	classifiers=["Development Status :: 3 - Alpha",
                      "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+                     "Programming Language :: Python :: 2.7",
+                     "Programming Language :: Python :: 3",
                      "Topic :: Games/Entertainment :: Role-Playing"],
+      python_requires='>=2.7',
       packages=['delv'],
       package_data={'delv':['rdasm_include/*.rdasm', 'rdasm_include/Delver/*.rdasm']})

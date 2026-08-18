@@ -57,7 +57,7 @@ class Asnd(Sound):
     def write_to_bfile(self, dest=None):
         if dest is None: dest = self.src
         dest.seek(0)
-        dest.write('asnd')
+        dest.write(b'asnd')
         dest.write_uint32(self.duration)
         dest.write_uint16(self.rate)
         dest.write_uint16(self.flags)
@@ -68,7 +68,7 @@ class Asnd(Sound):
         
     def load_from_bfile(self):
         self.src.seek(0)
-        if self.src.read(4) != 'asnd': raise SoundError("Bad magic number")
+        if self.src.read(4) != b'asnd': raise SoundError("Bad magic number")
         self.duration = self.src.read_uint32()
         self.rate = self.src.read_uint16()
         self.flags = self.src.read_uint16()
@@ -94,7 +94,7 @@ class Asnd(Sound):
             self.duration = 0
         else:
             self.samples.extend([0]*(1024 - len(self.samples)%1024))
-            self.duration = (len(self.samples)-512)/1024
+            self.duration = (len(self.samples)-512)//1024
     def set_rate(self, newrate):
         self.rate = newrate
         self.data = None
@@ -375,7 +375,7 @@ class Music(Sound):
                     new_value = self.src.read_fixed16() # modulation value, and cursor moved back up to 2 bytes; modulations tiny in Cythera
                     self.qtma_commands.append(["mod",part,new_value,0,0])
                 elif controller == CON_PAN:
-                    new_value = (value - 256)/2 # scale from 256 - 512 to 0 - 127
+                    new_value = (value - 256)//2 # scale from 256 - 512 to 0 - 127
                     if new_value > 127:
                         new_value = 127
                     self.qtma_commands.append(["pan",part,new_value,0,0])

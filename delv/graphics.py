@@ -121,7 +121,7 @@ class DelvImage(store.Store):
         self.image = bytearray(self.logical_width * self.logical_height)
         try:
             if src: self.decompress(self.src.readb(), data_cursor)
-        except IndexError(e):
+        except IndexError as e:
             print("Cursor", self.cursor, repr(e))
         self.cached_visual = None
     def decompress(self, data, cursor):
@@ -230,7 +230,7 @@ class DelvImage(store.Store):
         else: 
             data = bytearray()
         data += self.condense_opcodes(codes)
-        data += '\xFF' # Termination opcode
+        data.append(0xFF) # Termination opcode
         return data
 
     def get_data(self):
@@ -356,8 +356,8 @@ class DelvImage(store.Store):
         return datalen/(datalen+1.0),end,code
     def en_long_data(self,i,d):
         if len(d)-i < 4:
-            return -1,i,''
-        return 4/5.0,i+4,'\xC0'+d[i:i+4]
+            return -1,i,bytearray()
+        return 4/5.0,i+4,bytearray([0xC0])+d[i:i+4]
     def searchback(self, d, i, lits, start, stop, mlen,llen=3):
         found = -1
         match_found = -1
@@ -365,7 +365,7 @@ class DelvImage(store.Store):
         highest_clen = min(mlen,len(d)-i)
         found_clen = 0
         while (highest_clen >= lowest_clen):
-            mid_clen = (highest_clen-lowest_clen)/2 + lowest_clen
+            mid_clen = (highest_clen-lowest_clen)//2 + lowest_clen
             found = d.rfind(d[i+lits:i+lits+mid_clen],start,stop)
             if found >= 0:
                 lowest_clen = mid_clen+1
@@ -378,7 +378,7 @@ class DelvImage(store.Store):
         #if lits: return -1,i,''
         found,clen = self.searchback(d,i,lits,max(0,i-(1024-lits)),i+lits,10)
         if found < 0:
-            return -1,i,''
+            return -1,i,bytearray()
 
         index = -(found-i+1)+lits
 
@@ -397,7 +397,7 @@ class DelvImage(store.Store):
     def en_long_copy(self,i,d,lits):
         found,clen = self.searchback(d,i,lits, max(0,i-(32768-lits)),i+lits,34)
         if found < 0:
-            return -1,i,''
+            return -1,i,bytearray()
         index = -(found-i+1)+lits
 
         code = bytearray(3)
@@ -418,7 +418,7 @@ class DelvImage(store.Store):
         while end < len(d) and d[end] == initial_color:
             end += 1
         if end-i < 3:
-            return -1,i,''
+            return -1,i,bytearray()
         runlength = min(18,end-i)
         code = bytearray(2)
         bits_pack(code, 0xE,           4, 0)
@@ -431,7 +431,7 @@ class DelvImage(store.Store):
         while end < len(d) and d[end] == initial_color:
             end += 1
         if end-i < 3:
-            return -1,i,''
+            return -1,i,bytearray()
         runlength = min(258,end-i)
         code = bytearray(3)
         bits_pack(code, 0xF0,          8, 0)
@@ -456,7 +456,7 @@ class DelvImage(store.Store):
         assert not len(ops)%4
         while ops:
             chunk = min(64,len(ops))
-            data += chr(0xC0 + chunk/4 - 1)
+            data.append(0xC0 + chunk//4 - 1)
             data += ops[:chunk]
             ops = ops[chunk:]
         return data

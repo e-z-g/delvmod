@@ -60,6 +60,9 @@ ATO_SYM = '(atom|symbol):%s'
 EXPR_CODE = "'(' ws expression_item*:%s ws ')'"
 STAT_CODE = "'(' ws function_item*:%s ws ')'"
 import inspect # forgive me, I just need to get this done
+# inspect.getargspec was removed in Python 3.11; getfullargspec returns a
+# 7-tuple whose first four fields match the old 4-tuple exactly.
+_getargspec = getattr(inspect, 'getfullargspec', None) or inspect.getargspec
 class Opcode(object):
     def __init__(self, ctx, **kwargs):
         self.ctx = ctx
@@ -74,13 +77,13 @@ class Opcode(object):
             base += self.match()
         return base + ' -> %s(asm, %s)'%(self.true_name, self.parameterization())
     def match(self):
-        argname, _, _, argclass = inspect.getargspec(self.generate)
+        argname, _, _, argclass = _getargspec(self.generate)[:4]
         if not argclass: return ''
         p = ' space '.join([rule%binding for binding,rule in zip(argname[-len(argclass):],argclass)])
         return (' space ' if argclass[0].strip()[0] == "'" else ' required_space ')+p if p else p
 
     def parameterization(self):
-        argname, _, _, argclass = inspect.getargspec(self.generate)
+        argname, _, _, argclass = _getargspec(self.generate)[:4]
         if not argclass: return ''
         p = ', '.join(['%s=%s'%(binding,binding) for binding,rule in zip(
                              argname[-len(argclass):],argclass)])
@@ -114,7 +117,7 @@ class Op_load_byte(Opcode):
     mnemonic = 'byte'
     def generate(self, of, ctx, immediate=INT_SYM):
         of.write_uint8(0x41)
-        if immediate < 0:
+        if isinstance(immediate, int) and immediate < 0:
             of.write_sint8(ctx.getlval(immediate, self, of.tell()))
         else:
             of.write_uint8(ctx.getlval(immediate, self, of.tell())&0xFF)
@@ -125,7 +128,7 @@ class Op_load_short(Opcode):
     mnemonic = 'short'
     def generate(self, of, ctx, immediate=INT_SYM):
         of.write_uint8(0x42)
-        if immediate >= 0:
+        if not (isinstance(immediate, int) and immediate < 0):
             of.write_uint16(ctx.getlval(immediate, self, of.tell())&0xFFFF)
         else:
             of.write_sint16(ctx.getlval(immediate, self, of.tell()))
@@ -536,7 +539,7 @@ def dict_write_code(table, ofile, context, force_order = None):
     addrs = []
     for address, item in callbacks:
         addrs.append((address,ofile.tell()))
-        if isinstance(item,str) or isinstance(item,bytearray):
+        if isinstance(item, util.string_types + (bytearray,)):
             ofile.write(item)
         else:
             item.write_code(ofile,context)
@@ -559,7 +562,7 @@ def write_array_item(ofile, item, context, callbacks):
          ofile.write_uint32(0x50000000)
     elif isinstance(item,int):
          ofile.write_uint32(item)
-    elif isinstance(item,str) or isinstance(item,bytearray) or isinstance(item,Array):
+    elif isinstance(item, util.string_types + (bytearray,)) or isinstance(item,Array):
          ofile.write_uint16(context.context_resource|0x8000)
          callbacks.append((ofile.tell(), item))
          ofile.write_uint16(0xDEAD)
@@ -618,7 +621,7 @@ class Array(list):
         addrs = []
         for address, item in callbacks:
             addrs.append((address,ofile.tell()))
-            if isinstance(item,str) or isinstance(item,bytearray):
+            if isinstance(item, util.string_types + (bytearray,)):
                 ofile.write(item)
             elif isinstance(item,dict):
                 dict_write_code(item,ofile,context)
@@ -768,7 +771,7 @@ class DDict(dict):
         addrs = []
         for address, item in callbacks:
             addrs.append((address,ofile.tell()))
-            if isinstance(item,str) or isinstance(item,bytearray):
+            if isinstance(item, util.string_types + (bytearray,)):
                 ofile.write(item)
             else:
                 item.write_code(ofile,context)
@@ -1085,8 +1088,7 @@ class Assembler(object):
                         else:
                             table[k] = sv
                     except KeyError:
-                        s= self.symtab.items()
-                        s.sort()
+                        s= sorted(self.symtab.items())
                         for l,v in s: print(l,':',v)
                         print("---> Field%04X"%k)
                         assert False
