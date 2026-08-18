@@ -37,6 +37,23 @@ except ImportError:
 import struct
 from sys import stderr
 
+# Delver archives store text in Mac OS Roman. Under Python 2 (where this code
+# was written) `str` was bytes and unicode literals were coerced implicitly on
+# write; Python 3 requires the conversion to be explicit. These helpers accept
+# either representation so call sites work unchanged on both versions.
+try:
+    text_type = unicode          # Python 2
+except NameError:                # pragma: no cover
+    text_type = str              # Python 3
+
+def as_bytes(s, encoding="macroman"):
+    "Encode text to bytes; pass bytes/bytearray through unchanged."
+    return s.encode(encoding) if isinstance(s, text_type) else s
+
+def as_text(s, encoding="macroman"):
+    "Decode bytes to text; pass text through unchanged."
+    return s.decode(encoding) if isinstance(s, (bytes, bytearray)) else s
+
 class dref(object):
     def __init__(self,resid,offset,length=None):
         self.resid = resid
@@ -175,9 +192,12 @@ class BinaryHandler(object):
 
     # Wishing for a more elegant alternative
     def eof(self):
+        p = self.file.tell()
         rv = self.file.read(1)
-        self.file.seek(-1, 1)
-        return rv is ''
+        self.file.seek(p)
+        # In Python 3 a binary read returns b'', so compare by truth value
+        # rather than identity against a str literal.
+        return not rv
     def seek(self, *vargs, **kwargs):
         self.file.seek(*vargs, **kwargs)
     def cm_read(self,  *vargs, **kwargs):
@@ -206,8 +226,8 @@ class BinaryHandler(object):
         return self.file.read(*vargs, **kwargs)
     def readb(self, *vargs, **kwargs):
         return bytearray(self.file.read(*vargs, **kwargs))
-    def write(self, *vargs, **kwargs):
-        self.file.write(*vargs, **kwargs)
+    def write(self, data, *vargs, **kwargs):
+        self.file.write(as_bytes(data), *vargs, **kwargs)
     def tell(self, *vargs, **kwargs):
         return self.file.tell(*vargs, **kwargs)
     def __len__(self):
@@ -286,12 +306,13 @@ class BinaryHandler(object):
         if offset is not None: self.seek(offset)
         assert len(s) < 32
         self.write_uint8(len(s))
-        self.write('\x00'%(31-len(s)))
+        self.write(as_bytes(s))
+        self.write(b'\x00'*(31-len(s)))
     def write_cstring(self, s, offset=None):
         "Write a null-terminated string."
         if offset is not None: self.seek(offset)
         self.write(s)
-        return self.write('\x00')
+        return self.write(b'\x00')
     def write_fixed16(self, s, offset=None):
         "Write 8.8 fixed-point number."
         if offset is not None: self.seek(offset)
