@@ -9,8 +9,19 @@ redelv is based on the python module delv, which was itself prepared based on
 the DelvTechWiki's technical documentation project, which can be found here:
 http://www.ferazelhosting.net/wiki/
 
+REQUIREMENTS / PYTHON VERSION
+
+redelv requires Python 2.7 and PyGTK (GTK+ 2). PyGTK was never ported to
+Python 3 and is not available on Apple Silicon (arm64) Macs, so redelv does
+not currently run there. Porting it would mean migrating the GUI to
+PyGObject/GTK+ 3, which is a substantial rewrite -- gtk.ItemFactory, used to
+build every menu bar in redelv, was removed outright in GTK+ 3.
+
+The underlying delv module itself does run on Python 3 and on Apple Silicon;
+only this GUI front end is affected.
+
 INSTALLING
-python setup.py install
+pip install .
 
 HOW TO USE IT
 Run the command 'redelv' from your command line after installing.

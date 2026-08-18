@@ -161,7 +161,7 @@ class Array(list, _PrintOuter):
             return
         self.pn(indent, "array [")
         for n,item in enumerate(self):
-            if False: #self.references.has_key(n): 
+            if False: #n in self.references: 
                 self.p(indent, "#{ %4d: }# "%n)
                 self.disassemble_atom(indent+1,self.references[n])
                 self.pn(indent+1,'')
@@ -205,7 +205,7 @@ class DCBytes(DCOperation):
         self.set_stream(out)
         #self.dlabel(indent)
         self.pn(indent, "bytes [")
-        howmany = (80 - indent*len(self.indent) - 5)/5
+        howmany = (80 - indent*len(self.indent) - 5)//5
         for n,b in enumerate(self.data):
             self.p(indent+1, "0x%02X "%b)
             if not (n+1)%howmany: self.p(indent,'\n')
@@ -605,7 +605,7 @@ def DCOperationFactory(data, i, code, script, mode = 'toplevel',
     DCOperation.code_context = code
     DCOperation.script_context = script
     opc = data[i]
-    if mode is 'toplevel':
+    if mode == 'toplevel':
         if opc < 0x80:
             op = DCStringConstant
         elif opc == 0x82:
@@ -672,7 +672,7 @@ def DCOperationFactory(data, i, code, script, mode = 'toplevel',
         op = op(data,i,organic_offset+i)
         i += len(op)
         return op, i
-    elif mode is 'expression':
+    elif mode == 'expression':
         if opc &0xF0 == 0x30:
             op = DOPushArg
         elif opc < 0x30:

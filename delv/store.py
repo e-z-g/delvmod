@@ -77,7 +77,7 @@ class Store(object):
         if not self.checked_out: self.data = None
     def get_data(self):
         if self.checked_out or not self.data:
-            buf = StringIO.StringIO()
+            buf = StringIO()
             bh = util.BinaryHandler(buf)
             self.write_to_bfile(bh)
             # I wonder why StringIO doesn't have a method that does this:

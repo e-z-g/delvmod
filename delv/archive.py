@@ -191,9 +191,8 @@ class Resource(object):
                 length_limit=mdref.offset+mdref.length)
     def preview(self): 
         """Generate a human-readable preview."""
-        d = filter(
-            (lambda x: chr(x) in string.printable and (
-                chr(x) not in string.whitespace)), self.get_data())
+        d = [x for x in bytearray(self.get_data())
+             if chr(x) in string.printable and chr(x) not in string.whitespace]
         return '"%s"'%''.join(map(chr,d[:20]))
         
         
@@ -364,7 +363,7 @@ class Archive(object):
             rid = int(rid,16)
             subindex,ri = indices(rid)
             nres = Resource(0,0,subindex,ri, self)
-            dfile = open(os.path.join(path, '%04X.data'%rid), 'r')
+            dfile = open(os.path.join(path, '%04X.data'%rid), 'rb')
             nres.load_from_file(dfile)
             nres.hint_encryption(False, canon_e)
             self[rid] = nres
@@ -396,8 +395,8 @@ class Archive(object):
         assert os.path.isdir(path)
         metadata = {'source': self.source(), 
             'creator': 'delv (www.ferazelhosting.net/wiki/delv)',
-            'scenario_title': self.scenario_title.decode("macroman"),
-            'player_name': self.player_name.decode("macroman")}
+            'scenario_title': util.as_text(self.scenario_title),
+            'player_name': util.as_text(self.player_name)}
         encrypt = {}
         for resource in self.resources():
             if not resource: continue # don't preserve empties
@@ -650,7 +649,7 @@ class Patch(Scenario):
         patchres = self.get(0xFFFF)
         if not patchres: return ''
         data = patchres.as_file()
-        if data.read(5) == 'MAGPY': # mag.py format
+        if data.read(5) == b'MAGPY': # mag.py format
             self.patch_info = data.read()
         else: # Magpie format
             self.patch_info = data.read_pstring(0x138)

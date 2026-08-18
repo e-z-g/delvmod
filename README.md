@@ -4,10 +4,23 @@ A Python module and demonstration programs for modding a classic computer RPG
 
 INSTALLING / USING
 
-python setup.py install
+pip install .
 
-(You will need to run it as root, e.g. "sudo python setup.py install". You can
-also use "python setup.py develop" if you anticipate modifying the program.)
+(Use "pip install -e ." instead if you anticipate modifying the program.)
+
+Prefer installing into a virtual environment rather than as root:
+
+    python3 -m venv venv
+    ./venv/bin/pip install .
+
+delv runs on Python 2.7 and on Python 3 (tested through 3.14), including
+Apple Silicon Macs. The only required dependency is parsley; some of the
+demonstration programs in examples/ additionally want Pillow (graphics),
+midiutil (MIDI export) or pygame.
+
+The redelv GUI editor is NOT part of this and remains Python 2 only; it is
+built on PyGTK/GTK+ 2, which was never ported to Python 3 and is not
+available on Apple Silicon. See redelv/README.txt.
 
 WHAT IS delv FOR?
 
