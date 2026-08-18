@@ -165,7 +165,7 @@ class DArray(list, DVMObj):
         print(INDENT*i+'array %s('%(name if name else ''), end=' ', file=of)
         if len(self)> 6: print('\n'+INDENT*(i+1), end=' ', file=of)
         for item in self:
-            if isinstance(item, str):
+            if isinstance(item, util.string_types):
                 print(json.dumps(item), end=' ', file=of)
             elif hasattr(item, 'show'):
                 item.show(i+1, of)
@@ -215,7 +215,7 @@ class DTable(dict, DVMObj):
         for key,item in zip(self.field_ordering, self.ovals):
         #for key,item in self.items():
             print('0x%04X ='%key, end=' ', file=of)
-            if isinstance(item, str):
+            if isinstance(item, util.string_types):
                 print(json.dumps(item), end=' ', file=of)
             elif hasattr(item, 'show'):
                 item.show(0, of)
@@ -356,7 +356,7 @@ class Opcode(object):
             self.field = bfile.read_sint16()
         elif self.fixed_field == 4:
             self.field = bfile.read_uint32()
-        elif isinstance(self.fixed_field, str):
+        elif isinstance(self.fixed_field, util.string_types):
             self.field = bfile.read_uint16()
             self.label = func.dd.get_label(self.field, self.fixed_field)
         elif self.fixed_field is str:
@@ -383,7 +383,7 @@ class Opcode(object):
         if d and not self.suppress_labels: print((INDENT*idnt)+d+':', file=strm)
         print((INDENT*idnt)+self.mnemonic + ' ' + self.parameters(), file=strm)
     def parameters(self):
-        if isinstance(self.fixed_field, str):
+        if isinstance(self.fixed_field, util.string_types):
             return self.label
         if self.fixed_field is str:
             return json.dumps(self.field)
@@ -865,18 +865,18 @@ class DFunction(DVMObj):
                     print("    Couldn't identify the ending of the subroutine." )
                     self.dd.get_label(subroutinefound, "Subroutine")
                     self.near.seek(subroutinefound+1)
-            if opcode < 0x80 and mode is 'direct':
+            if opcode < 0x80 and mode == 'direct':
                 #print("staying direct")
                 if not textbuf: lastoffset = self.near.tell()-1
                 textbuf.append(opcode)
-            elif opcode >= 0x80 and mode is 'direct':
+            elif opcode >= 0x80 and mode == 'direct':
                 #print("changing to code",)
                 #print("ADDR", self.near.tell()-1)
                 mode = 'code'
                 self.code.append((''.join(map(chr,textbuf)),lastoffset))
                 self.ilevel.append(len(self.indent_segments)+1)
                 textbuf = []; lastoffset=-1
-            if mode is 'code':
+            if mode == 'code':
                 #print("code mode")
                 self.ilevel.append(len(self.indent_segments)+1)
                 if opcode < 0x80 and not self.expect_close: 

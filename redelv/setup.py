@@ -18,8 +18,7 @@
 # "Cythera" and "Delver" are trademarks of either Glenn Andreas or 
 # Ambrosia Software, Inc. 
 
-from distutils.core import setup
-import setuptools
+from setuptools import setup
 
 setup(name='redelvlib',
       version='0.2.2',
