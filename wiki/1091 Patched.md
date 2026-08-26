@@ -1,0 +1,180 @@
+
+
+
+```
+; Item Objects: Fishing Pole (0x1091)
+; The Annotated Unofficial Cythera Sources (TAUCS 1.0.4)
+; Commentator: Bryce Schroeder <bryce.schroeder@gmail.com>
+; Produced as part of the delv project. 
+; http://www.ferazelhosting.net/wiki/Cythera
+
+include Delver.Model
+include Delver.Main
+include Cythera
+use System
+resource 0x1091
+field_order (0x002A, 0x0024, 0x0009, 0x000A, 0x000B, 0x0008, 0x0030)
+class Object
+
+; How many "grains" does a fishing pole weigh?
+array Weight( 3 )
+
+function Use(Self) (
+
+    ; See if the player knows how to fish.
+    if_not 
+        sys GetSkill
+            global Globals.PlayerCharacter
+            short Skills.Fishing
+        end 
+        not 
+        ; negate the result, i.e. if the player does not not know
+        ; how to fish... then go to AskWhere.
+    then AskWhere
+
+    'It appears to be similar to a flyrod of sorts, but you were never'
+    ' able to manage a traditional flyrod, so this seems beyond you.\n'
+
+    return 
+        word none
+    end 
+
+    branch Failure
+
+    AskWhere:
+    'Cast the fly where?\n'
+
+    return 
+        byte UseReturnCodes.TargetLocationRequired
+    end 
+
+    Failure:
+    return 
+        byte UseReturnCodes.NothingRequired
+    end 
+)
+
+; Called to implement the action of the item on a particular
+; place on the map.
+function UseAt(Self, X, Y) (
+    ; Get the number of the map tile - but this is with
+    ; a bit flag 0x8000 set, which seems to have broken
+    ; fishing since the constants seen below do not take it
+    ; into account. 
+    set_local TileType
+        sys GetMapTile
+            arg X
+            arg Y
+        end         
+
+        ; This unsets any high bits TileType may return, so that
+        ; the constants below are correct to locate deep water again.
+        word 0x0007FFF
+        bitwise_and
+
+    end 
+
+    if_not
+        loc TileType
+        byte 8    
+        ; 8 is the first non-shore water tile.
+        lt 
+        loc TileType
+        byte 15   
+        ; 15 is the highest non-shore water tile.
+        gt 
+        or 
+    then TileIsDeepWater
+
+    'You need to cast into deep water.\n'
+    return 
+        byte 0
+    end 
+
+    TileIsDeepWater:
+
+    if_not 
+        global Globals.CurrentZone
+        short Zones.Overworld
+        eq 
+    then NotInOverWorld
+
+    'You fish for a while...\n'
+
+    sys PassTime
+        word 1024
+    end
+ 
+
+    ; The following statement determines if a fish is caught or not. It
+    ; is a bit complex so here it is algebraically:
+    ;     if_not (Random(0,8) > ((X*7 + Y*13)+Globals.CurrentHour)%11 ) 
+    ; In other words, fishing success depends on your location, position,
+    ; and luck. Some spots have no fish at certain times of day. The 
+    ; inclusion of a time of day parameter would seem to make it very
+    ; hard to find good fishing spots.
+    if_not 
+        ; generate a random integer 0-7 inclusive.
+        sys Random 
+            byte 0
+            byte 8
+        end 
+
+        arg X
+        byte 7
+        mul 
+
+        arg Y
+        byte 13
+        mul 
+
+        add 
+
+        global Globals.CurrentHour
+        add 
+
+        byte 11
+        mod 
+
+        gt 
+    then NoFishCaught
+
+    'You caught something!\n'
+    sys Create
+        global Globals.PlayerCharacter
+        
+        word 0x0002445  
+        ; 0x045 = food, fish aspect = 9
+        ; hence this value = 0x045 | (9<<10)
+        
+        byte 0
+        
+        byte 1
+    end 
+    branch SkipNoFishMessage
+
+    NoFishCaught:
+    'Not even so much as a nibble...\n'
+
+    SkipNoFishMessage:
+    branch End
+
+    ; I'm not sure what the rationale is here; we see fishermen in 
+    ; cities several times... 
+    NotInOverWorld:
+    'Hm - doesn\'t seem to be any fish around here...\n'
+
+    End:
+    return 
+        byte 0
+    end 
+)
+
+class_field 0x0008 none
+
+class_field 0x000A none
+
+class_field 0x002A none
+
+class_field 0x0030 none
+```

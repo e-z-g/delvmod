@@ -1,0 +1,6 @@
+
+DDASM is a disassembler for the Delver virtual machine. Its output is the [RDASM](RDASM) language. Hopefully. 
+
+Todo:  
+
+* - address nested function and whatever horrible mess of recursive arrays is going on in 080E. Is text recycled? - Recursive conversations in 0812. Maybe give up `endr` - Binary identicality for objects, to facilitate testing - support for the odd format in 0501 with a resref to itself at the end of a file - and the variation in 0301 which has the resref and a integer at the end... - The resrefs in the character name array 0201 are for resource 1165, but the data is all right there. RDASM sets them "correctly" (?) and fails regression testing. - 0210 might be inappropriately decrypted, or if not it's completely alien - 0101 has sporadic skipped areas detected. - Big arrays and tables should be printed out less hideously - Add more symbolic features based on delv.rdasm_symbolics - Integrate with [ReDelv](ReDelv) - Add way for [ReDelv](ReDelv) to remember the user's carefully-chosen symbol names (as metadata or inline?) - debugging features? - test on all the objects 
