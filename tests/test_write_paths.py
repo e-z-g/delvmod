@@ -124,7 +124,6 @@ class TestRoundTrip(unittest.TestCase):
         path = os.environ.get('DELV_TEST_ARCHIVE')
         if not path or not os.path.isfile(path):
             self.skipTest('set DELV_TEST_ARCHIVE to a Cythera Data file')
-        original = open(path, 'rb').read()
         a = Scenario(path)
         for r in a.resources():
             if not r.loaded:
