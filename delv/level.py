@@ -233,7 +233,31 @@ class Map(store.Store):
         self.map_data = array.array('H')
         for _ in range(self.width*self.height):
             self.map_data.append(self.src.read_uint16())
-    
+    def write_to_bfile(self, dest=None):
+        # The exact inverse of load_from_bfile, field for field. This is
+        # the method Store.get_data() requires of anything savable;
+        # PropList always had one and Map did not, which made maps the one
+        # level structure an editor could load but never write back.
+        if dest is None: dest = self.src
+        dest.seek(0)
+        dest.write_uint16(self.width)
+        dest.write_uint16(self.height)
+        dest.write_uint16(self.unknown)
+        dest.write_uint16(self.roof_layer_size)
+        dest.write_uint16(self.roof_underlayer_size)
+        dest.write_uint8(self.horizontal_edge_propagation)
+        dest.write_uint8(self.vertical_edge_propagation)
+        dest.write_uint16(self.exit_zoneport_north)
+        dest.write_uint16(self.exit_zoneport_east)
+        dest.write_uint16(self.exit_zoneport_south)
+        dest.write_uint16(self.exit_zoneport_west)
+        dest.write(bytes(self.padding))
+        for v in self.roof_data:
+            dest.write_uint16(v)
+        for v in self.map_data:
+            dest.write_uint16(v)
+        dest.truncate()
+
 
 class Level(object):
     pass
