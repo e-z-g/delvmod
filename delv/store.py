@@ -50,19 +50,26 @@ class Store(object):
         from . import archive
         #print "setsource", repr(src)
         self.src = None
+        self.res = None
+        # A Store with no source at all is legitimate: DelvImage documents
+        # src=None as "create an empty image of the default size", and an
+        # editor building a brand-new object has no resource to bind yet.
+        # Serialization still works -- get_data() writes into its own
+        # buffer -- and only re-loading needs a source. The old code
+        # asserted here, which broke the documented DelvImage(None, w, h)
+        # and the dcg_encoder example along with it.
+        if src is None:
+            return
         if issubclass(src.__class__, util.BinaryHandler):
             self.src = src
-            self.res = None
         elif issubclass(src.__class__, archive.Resource):
             self.src = src.as_file()
             self.res = src
-        elif src:
-            self.src = util.BinaryHandler(src)
-            self.res = None
         else:
-            print(dir(src), hasattr(src, 'resid'))
-            assert False, "Invalid source %s"%repr(src)
-        #print "final", repr(self.src), repr(self.res)
+            # Anything indexable, including an *empty* bytes/bytearray:
+            # an empty resource is a valid thing to bind to, so do not
+            # truth-test src here.
+            self.src = util.BinaryHandler(src)
     def is_checked_out(self):
         return self.checked_out
     def check_out(self):
