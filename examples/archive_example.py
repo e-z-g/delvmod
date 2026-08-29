@@ -77,9 +77,11 @@ for idx in archive.subindices():
     if not resids: continue
     print(idx, "has", len(archive.resource_ids(idx)), "resources")
 
-# Modify a resource, as an array: 
+# Modify a resource, as an array:
 # (This changes the text of the Sapphire Book of Wisdom)
-archive[0x021B][0xDA7:0xDAA] = 'hax'
+# Note the bytes literal: archive[resid] hands you the resource's own
+# bytearray, and a bytearray slice only accepts bytes on Python 3.
+archive[0x021B][0xDA7:0xDAA] = b'hax'
 
 # Create a resource one way
 archive[0xBC00] = "This file written by delv %s"%delv.version

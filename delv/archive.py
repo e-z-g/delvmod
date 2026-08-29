@@ -174,6 +174,16 @@ class Resource(object):
         self.dirty = True
         self.encrypted = None if not self.loaded else False
         self.canon_encryption = self.encrypted
+        # A resource created de novo (offset 0) has no medium to have been
+        # encrypted in, but its *canonical* encryption is whatever the
+        # archive mandates for its subindex. Without this seed, a new
+        # resource in a known-encrypted subindex is written to disk as
+        # plaintext, and the next load "decrypts" it into garbage of the
+        # same length -- silently.
+        if archive is not None and not offset:
+            hint = archive.canon_encryption_of(subindex, resid(subindex, n))
+            if hint is not None:
+                self.canon_encryption = hint
         # Multiple archives may be open.
         self.archive = archive
         # Only needed for debugging and decryption.
@@ -220,15 +230,33 @@ class Resource(object):
         if not self.loaded: self.load()
         return self.data[n]
     def __setitem__(self, n, v):
-        """Set the nth byte of the resource to v."""
+        """Set the nth byte of the resource to v. n may be a slice, in
+           which case v may also be text (encoded as Mac Roman)."""
         if not self.loaded: self.load()
         self.dirty = True
-        self.data[n] = v
+        self.data[n] = util.as_bytes(v) if isinstance(
+            v, util.string_types) else v
     def set_data(self, data):
-        """Replace the data of this resource."""
+        """Replace the data of this resource. Accepts bytes-like data or
+           text; text is encoded as Mac Roman, the game's own encoding.
+           (Under Python 2 str was bytes, so callers passing literals --
+           redelv and the examples both do -- worked implicitly; on 3
+           bytearray(str) demands an encoding, so we choose it here.)"""
         self.dirty = True
+        # Replacing the data of a resource that was never read skips
+        # load(), which is where encryption status is normally resolved --
+        # leaving canon_encryption None and making the eventual
+        # Archive.to_file assert. Resolve it here the same way load()
+        # would; an unknown subindex defaults to clear, which is the only
+        # defensible answer for data that never existed on disk.
+        if self.canon_encryption is None:
+            hint = None
+            if self.archive is not None:
+                hint = self.archive.canon_encryption_of(
+                    self.subindex, self.resid)
+            self.canon_encryption = bool(hint)
         self.loaded = True
-        self.data = bytearray(data)
+        self.data = bytearray(util.as_bytes(data))
     def get_data(self):
         """Return the data of this resource as a mutable bytearray.
            If you alter the bytearray, you must manually set .dirty to True."""
@@ -237,9 +265,12 @@ class Resource(object):
     def __repr__(self):
         return "<Resource %04X>"%resid(self.subindex,self.n)
     def __str__(self):
-        """Return a string of the Resource's contents."""
+        """Return a string of the Resource's contents, decoded as Mac
+           Roman. (bytes()-then-decode, not str(): on Python 3
+           str(bytearray) yields the repr, the same trap ResourceFile.read
+           had.)"""
         if not self.loaded: self.load()
-        return str(self.data)
+        return util.as_text(bytes(self.data))
     def __len__(self):
         "Returns the size of the resource data."
         return len(self.data)
@@ -411,7 +442,7 @@ class Archive(object):
         metadata['should_encrypt'] = encrypt
         metafile = open(os.path.join(path, "metadata.json"), 'w')
         json.dump(metadata, metafile)
-        metafile.close
+        metafile.close()
     def to_file(self, dest):
         """Write a Delver archive to the destination file-like
            object (must be open for writing, obviously)"""
@@ -465,7 +496,15 @@ class Archive(object):
         if os.path.isdir(path):
             self.to_directory(path)
         else:
-            self.to_file(open(path, 'wb'))
+            # Close explicitly: on CPython the dangling handle happened to
+            # flush at collection, but that is an accident, and to_file
+            # seeks backwards to fill in the master index, so a lost write
+            # here corrupts the whole archive.
+            dest = open(path, 'wb')
+            try:
+                self.to_file(dest)
+            finally:
+                dest.close()
 
     def get(self, idx, create_new=False):
         """Get a resource by its two-byte-integer composite resource ID,
@@ -477,6 +516,13 @@ class Archive(object):
         if not self.all_subindices[subindex]:
             if create_new:
                 self.all_subindices[subindex] = [None]*256
+                # The master index entry is the record of the subindex's
+                # existence: subindices() reads it, and through it so do
+                # resources(), resource_ids(), iteration and Patch.diff.
+                # to_file() replaces the placeholder with the real offset
+                # and length when the archive is written.
+                if not self.master_index[subindex]:
+                    self.master_index[subindex] = (-1,-1)
             else:
                 return None
         r = self.all_subindices[subindex][n]
@@ -526,8 +572,11 @@ class Archive(object):
             sx = self.all_subindices[subindex]
             return [resid(subindex,n) for n,r in enumerate(sx) if r]
         else:
-            return functools.reduce(operator.add, 
-                [self.resource_ids(si) for si in self.subindices()])
+            # The initializer matters: an archive with no populated
+            # subindices (a fresh Patch, say) must yield [], not a
+            # TypeError from reduce over an empty sequence.
+            return functools.reduce(operator.add,
+                [self.resource_ids(si) for si in self.subindices()], [])
     def subindices(self):
         """Return a list of valid subindices for this archive."""
         return [n for n in range(len(self.master_index)
@@ -542,8 +591,8 @@ class Archive(object):
             sx = self.all_subindices[subindex]
             return [r for r in sx if r]
         else:
-            return functools.reduce(operator.add, 
-                [self.resources(si) for si in self.subindices()])
+            return functools.reduce(operator.add,
+                [self.resources(si) for si in self.subindices()], [])
     def __iter__(self):
         """This iterator is over all extant resources in the archive. That
            is, if d is an Archive, the following are equivalent:
@@ -642,22 +691,28 @@ class Scenario(Archive):
 
 class Patch(Scenario):
     """Class for manipulating Delver patchfiles."""
-    # public:
-    patch_info = "This patch created by delv.archive.Patch"
+    # The info string is kept in _patch_info, not patch_info. The old code
+    # had a class attribute and a method sharing the name patch_info: the
+    # def won at class creation, and the method then rebound the *instance*
+    # attribute to a string, so the second call ever made on a Patch raised
+    # "'str' object is not callable". redelv's Save Patch and mag.py's diff
+    # both go through here.
+    _patch_info = "This patch created by delv.archive.Patch"
     def patch_info(self, infostring):
         "Set the description of the patch."
-        self[0xFFFF] = 'MAGPY'+infostring
-        self.patch_info = infostring
+        self[0xFFFF] = b'MAGPY' + util.as_bytes(infostring)
+        self._patch_info = infostring
     def get_patch_info(self):
-        """Return the patch info string. mag.py and Magpie formats supported."""
+        """Return the patch info string (as text). mag.py and Magpie
+           formats supported."""
         patchres = self.get(0xFFFF)
         if not patchres: return ''
         data = patchres.as_file()
         if data.read(5) == b'MAGPY': # mag.py format
-            self.patch_info = data.read()
+            self._patch_info = util.as_text(data.read())
         else: # Magpie format
-            self.patch_info = data.read_pstring(0x138)
-        return self.patch_info
+            self._patch_info = util.as_text(data.read_pstring(0x138))
+        return self._patch_info
         
         
     def compatible(self, other_patch, exclude = [0xFFFF,0xBC00,0xBC35]):

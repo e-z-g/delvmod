@@ -73,9 +73,15 @@ class DelvImage(store.Store):
         #else:
         #    self.src = None
         store.Store.__init__(self,src)
-        if src: self.load_from_bfile()
-    def load_from_bfile(self):
-        self.src.seek(0)
+        # Called even when src is None: the src-less branches below are
+        # what set up the empty image the class docstring promises. This
+        # method was evidently split out of __init__ at some point, which
+        # left width/height/logical_width behind as free variables that
+        # NameError'd -- they are parameters again now, and __init__ is
+        # the only caller that passes them.
+        self.load_from_bfile(width, height, logical_width)
+    def load_from_bfile(self, width=256, height=256, logical_width=256):
+        if self.src: self.src.seek(0)
         src = self.src
         if self.has_header and self.src:
             header = self.src.readb(4)
