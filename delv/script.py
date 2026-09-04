@@ -230,7 +230,7 @@ class DCFixedFieldOperation(DCOperation):
         self.pn(indent, self.get_mnemonic(), self.get_fields())
 
 class DCVariableFieldOperation(DCFixedFieldOperation):
-    terminator = '\0'
+    terminator = b'\0'
     def __init__(self, data, i,toff):
         self.true_offset = toff
         end = self.decode_length(data[i:])
@@ -247,7 +247,7 @@ class DCConversationPrompt(DCVariableFieldOperation):
         return i + 3
     def decode(self):
         self.promptstr = self.data[
-             1:self.data.find(self.terminator)].split(',')
+             1:self.data.find(self.terminator)].split(b',')
         self.nextfield = (self.data[-2]<<8)|self.data[-1]
         self.nextlabel = self.script_context.get_offset_label(self.nextfield,
             suggestion='conv_%03X'%self.nextfield)
@@ -666,7 +666,7 @@ def DCOperationFactory(data, i, code, script, mode = 'toplevel',
         elif opc == 0xF5:
             op = DCF5
         elif opc&0xF0 == 0xF0:
-            op = DCSeriesF
+            op = DOSeriesF
         else:
             op = DCBytes
         op = op(data,i,organic_offset+i)
@@ -724,9 +724,9 @@ def DCOperationFactory(data, i, code, script, mode = 'toplevel',
         elif opc == 0xEE:
             op = DCEEStatement
         elif opc&0xF0 == 0xD0:
-            op = DCSeriesD
+            op = DOSeriesD
         elif opc&0xF0 == 0xF0:
-            op = DCSeriesF
+            op = DOSeriesF
         elif opc == 0x40:
             op = None
             i += 1
